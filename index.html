@@ -887,7 +887,7 @@ function getTurnosDia(data){
   return ['unico'];
 }
 
-function getTurnoKey(funcId,turno){return `${funcId}_${turno}`}
+function getTurnoKey(funcId,turno){return String(funcId).trim()+'_'+String(turno).trim();}
 
 async function renderPresenca(){
   const ds=diaSemana(diaAtual);
@@ -919,7 +919,7 @@ async function renderPresenca(){
   try{
     const registros=await apiGet({action:'getPresenca',data:dataStr(diaAtual)});
     registros.forEach(r=>{
-      presencaAtual[getTurnoKey(r.funcionario_id,r.turno||'unico')]=r.status;
+      presencaAtual[getTurnoKey(String(r.funcionario_id).trim(),String(r.turno||'unico').trim())]=String(r.status).trim();
     });
   }catch(e){}
 
@@ -942,7 +942,7 @@ function renderGridPresenca(){
 }
 
 function renderPresencaItem(f){
-  const key=getTurnoKey(f.id,turnoAtual);
+  const key=getTurnoKey(String(f.id).trim(),turnoAtual);
   const st=presencaAtual[key]||'';
   return `<div class="presenca-item">
     <div>
@@ -958,14 +958,14 @@ function renderPresencaItem(f){
 }
 
 function setStatus(funcId,status){
-  const key=getTurnoKey(funcId,turnoAtual);
+  const key=getTurnoKey(String(funcId).trim(),turnoAtual);
   presencaAtual[key]=status;
   renderGridPresenca();
 }
 
 function marcarTodos(status){
   funcionarios.forEach(f=>{
-    const key=getTurnoKey(f.id,turnoAtual);
+    const key=getTurnoKey(String(f.id).trim(),turnoAtual);
     presencaAtual[key]=status;
   });
   renderGridPresenca();
@@ -974,37 +974,42 @@ function marcarTodos(status){
 async function salvarPresencaDia(){
   const ds=dataStr(diaAtual);
   const turnos=getTurnosDia(diaAtual);
-  const promises=[];
-  let count=0;
+  // Monta lista de registros para salvar
+  const registros=[];
   funcionarios.forEach(f=>{
     turnos.forEach(t=>{
       const key=getTurnoKey(f.id,t);
       const status=presencaAtual[key];
       if(status){
-        count++;
         const horas=calcularHoras(f,t,diaAtual,status);
-        promises.push(apiPost({
-          action:'salvarPresenca',
-          data:ds,
-          funcionario_id:f.id,
-          turno:t,
-          status,
-          horas_normais:horas.normais,
-          horas_noturnas:horas.noturnas
-        }));
+        registros.push({action:'salvarPresenca',data:ds,funcionario_id:f.id,turno:t,status,horas_normais:horas.normais,horas_noturnas:horas.noturnas});
       }
     });
   });
-  if(count===0){toast('Nenhum status marcado para salvar.','error');return;}
+  if(registros.length===0){toast('Nenhum status marcado para salvar.','error');return;}
   const btn=document.querySelector('[onclick="salvarPresencaDia()"]');
-  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  if(btn){btn.disabled=true;btn.textContent='Salvando 0/'+registros.length+'...';}
+  let salvos=0;
+  let erros=0;
   try{
-    await Promise.all(promises);
-    toast('Presença salva! ('+count+' registros)','success');
-    // Recarrega do servidor para confirmar
+    // Envia UM POR VEZ com pequeno intervalo para não sobrecarregar o Apps Script
+    for(const r of registros){
+      try{
+        await apiPost(r);
+        salvos++;
+        if(btn) btn.textContent='Salvando '+salvos+'/'+registros.length+'...';
+      }catch(e){
+        erros++;
+      }
+      // Pequena pausa entre requisições
+      await new Promise(res=>setTimeout(res,200));
+    }
+    if(erros===0){
+      toast('Presença salva! ('+salvos+' registros)','success');
+    } else {
+      toast('Salvo com avisos: '+salvos+' ok, '+erros+' erros.','error');
+    }
     await renderPresenca();
-  }catch(e){
-    toast('Erro ao salvar presença.','error');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Salvar Presença';}
   }
@@ -1195,24 +1200,21 @@ async function salvarComissao(){
   const btn=document.getElementById('btn-salvar-comissao');
   btn.disabled=true;btn.textContent='Salvando...';
   try{
-    // 1. Salva presença de quem está em memória (ainda não salvo)
+    // 1. Salva presença de quem está em memória (sequencial)
     const turnos=getTurnosDia(diaComissao);
     if(turnos.length>0){
-      const presPromises=[];
-      funcionarios.forEach(f=>{
-        turnos.forEach(t=>{
+      for(const f of funcionarios){
+        for(const t of turnos){
           const key=getTurnoKey(f.id,t);
           const status=presencaAtual[key];
           if(status){
             const horas=calcularHoras(f,t,diaComissao,status);
-            presPromises.push(apiPost({action:'salvarPresenca',data:ds,funcionario_id:f.id,turno:t,status,horas_normais:horas.normais,horas_noturnas:horas.noturnas}));
+            try{ await apiPost({action:'salvarPresenca',data:ds,funcionario_id:f.id,turno:t,status,horas_normais:horas.normais,horas_noturnas:horas.noturnas}); }catch(e){}
+            await new Promise(r=>setTimeout(r,200));
           }
-        });
-      });
-      if(presPromises.length>0) await Promise.all(presPromises);
+        }
+      }
     }
-    // Aguarda um momento para o servidor processar
-    await new Promise(r=>setTimeout(r,500));
     // 2. Salva comissão
     await apiPost({
       action:'salvarComissao',
