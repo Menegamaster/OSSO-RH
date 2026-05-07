@@ -530,6 +530,9 @@ select.form-input{cursor:pointer}
           <button class="btn btn-secondary btn-sm" onclick="marcarTodos('folga')">Todos folga</button>
           <button class="btn btn-primary btn-sm" onclick="abrirModalComissao()">+ Lançar Gorjeta do Dia</button>
         </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--accent-dim);border:1px solid rgba(232,197,71,0.2);border-radius:8px;font-size:12.5px;color:var(--accent)">
+          ⚠️ Sempre clique em <strong>Salvar Presença</strong> antes de lançar a gorjeta para garantir que todos os registros sejam salvos corretamente.
+        </div>
       </div>
     </div>
 
@@ -972,11 +975,13 @@ async function salvarPresencaDia(){
   const ds=dataStr(diaAtual);
   const turnos=getTurnosDia(diaAtual);
   const promises=[];
+  let count=0;
   funcionarios.forEach(f=>{
     turnos.forEach(t=>{
       const key=getTurnoKey(f.id,t);
       const status=presencaAtual[key];
       if(status){
+        count++;
         const horas=calcularHoras(f,t,diaAtual,status);
         promises.push(apiPost({
           action:'salvarPresenca',
@@ -990,10 +995,19 @@ async function salvarPresencaDia(){
       }
     });
   });
+  if(count===0){toast('Nenhum status marcado para salvar.','error');return;}
+  const btn=document.querySelector('[onclick="salvarPresencaDia()"]');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   try{
     await Promise.all(promises);
-    toast('Presença salva com sucesso!','success');
-  }catch(e){toast('Erro ao salvar presença. Verifique a conexão.','error')}
+    toast('Presença salva! ('+count+' registros)','success');
+    // Recarrega do servidor para confirmar
+    await renderPresenca();
+  }catch(e){
+    toast('Erro ao salvar presença.','error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Salvar Presença';}
+  }
 }
 
 function calcularHoras(f,turno,data,status){
@@ -1082,21 +1096,21 @@ async function abrirModalComissao(){
   diaComissao=new Date(diaAtual.getFullYear(),diaAtual.getMonth(),diaAtual.getDate());
   const ds=dataStr(diaComissao);
 
-  // Primeiro tenta usar presencaAtual (em memória, não salvo ainda)
-  let presentesIds=[];
+  // SEMPRE busca do servidor + complementa com memória
+  let registros=[];
+  try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
+  const savedPresentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
+  
+  // Complementa com quem está marcado em memória mas ainda não foi salvo
   const turnos=getTurnosDia(diaComissao);
+  const memoriaPresentes=[];
   funcionarios.forEach(f=>{
     const trabalhou=turnos.some(t=>presencaAtual[getTurnoKey(f.id,t)]==='trabalhou');
-    if(trabalhou) presentesIds.push(f.id.toString());
+    if(trabalhou) memoriaPresentes.push(f.id.toString());
   });
-
-  // Se não há nada em memória, busca do servidor
-  if(presentesIds.length===0){
-    let registros=[];
-    try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
-    const savedPresentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
-    presentesIds=[...new Set(savedPresentes)];
-  }
+  
+  const todos=[...new Set([...savedPresentes,...memoriaPresentes])];
+  let presentesIds=todos;
 
   comissaoPresentes.salao=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
   comissaoPresentes.cozinha=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
@@ -1181,7 +1195,7 @@ async function salvarComissao(){
   const btn=document.getElementById('btn-salvar-comissao');
   btn.disabled=true;btn.textContent='Salvando...';
   try{
-    // 1. Salva presença automaticamente (quem está em memória)
+    // 1. Salva presença de quem está em memória (ainda não salvo)
     const turnos=getTurnosDia(diaComissao);
     if(turnos.length>0){
       const presPromises=[];
@@ -1197,6 +1211,8 @@ async function salvarComissao(){
       });
       if(presPromises.length>0) await Promise.all(presPromises);
     }
+    // Aguarda um momento para o servidor processar
+    await new Promise(r=>setTimeout(r,500));
     // 2. Salva comissão
     await apiPost({
       action:'salvarComissao',
