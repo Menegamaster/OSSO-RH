@@ -699,11 +699,17 @@ function apiGet(params){
 }
 
 function apiPost(data){
-  return fetch(API,{
-    method:'POST',
-    mode:'no-cors',
-    body:JSON.stringify(data)
-  }).then(()=>({ok:true})).catch(e=>{throw e});
+  // Apps Script não aceita fetch POST cross-origin — usa JSONP via GET com payload
+  return new Promise((resolve,reject)=>{
+    const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const payload=encodeURIComponent(JSON.stringify(data));
+    window[cbName]=function(res){resolve(res);delete window[cbName];document.head.removeChild(s)};
+    const s=document.createElement('script');
+    s.src=`${API}?method=POST&payload=${payload}&callback=${cbName}`;
+    s.onerror=()=>{reject(new Error('Erro de rede'));delete window[cbName]};
+    document.head.appendChild(s);
+    setTimeout(()=>{if(window[cbName]){reject(new Error('Timeout POST'));delete window[cbName]}},20000);
+  });
 }
 
 // ============================================================
