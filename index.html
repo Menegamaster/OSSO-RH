@@ -207,6 +207,15 @@ select.form-input{cursor:pointer}
 .empty-state .empty-icon{font-size:36px;margin-bottom:12px;opacity:.4}
 .empty-state p{font-size:14px}
 
+/* DEBUG */
+#debug-panel{position:fixed;bottom:0;left:0;right:0;background:#1a1200;border-top:2px solid var(--accent);padding:10px 16px;font-family:monospace;font-size:12px;color:#e8c547;z-index:9998;max-height:160px;overflow-y:auto;display:none}
+#debug-panel.open{display:block}
+#debug-toggle{position:fixed;bottom:0;right:80px;background:var(--accent);color:#1a1500;border:none;padding:4px 12px;font-size:11px;cursor:pointer;font-weight:700;z-index:9999;border-radius:6px 6px 0 0}
+.debug-line{margin:2px 0;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.debug-ok{color:#5cb87a}
+.debug-err{color:#d45c5c}
+.debug-info{color:#4fa8d4}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -685,30 +694,55 @@ function fecharModal(id){document.getElementById(id).classList.remove('open')}
 // ============================================================
 // API
 // ============================================================
+function dbg(msg, tipo){
+  const panel=document.getElementById('debug-log');
+  if(!panel) return;
+  const d=new Date().toLocaleTimeString('pt-BR');
+  const cls=tipo==='ok'?'debug-ok':tipo==='err'?'debug-err':'debug-info';
+  panel.innerHTML=`<div class="debug-line ${cls}">[${d}] ${msg}</div>`+panel.innerHTML;
+}
+function toggleDebug(){
+  const p=document.getElementById('debug-panel');
+  p.classList.toggle('open');
+}
+
 function apiGet(params){
   return new Promise((resolve,reject)=>{
     const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const qs=Object.entries(params).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
-    window[cbName]=function(data){resolve(data);delete window[cbName];document.head.removeChild(s)};
+    const url=`${API}?${qs}&callback=${cbName}`;
+    dbg('GET: '+params.action,'info');
+    window[cbName]=function(data){
+      dbg('GET OK: '+params.action+' → '+(Array.isArray(data)?data.length+' itens':JSON.stringify(data).slice(0,80)),'ok');
+      resolve(data);delete window[cbName];document.head.removeChild(s);
+    };
     const s=document.createElement('script');
-    s.src=`${API}?${qs}&callback=${cbName}`;
-    s.onerror=()=>reject(new Error('Erro de rede'));
+    s.src=url;
+    s.onerror=()=>{dbg('GET ERRO rede: '+params.action,'err');reject(new Error('Erro de rede'))};
     document.head.appendChild(s);
-    setTimeout(()=>{if(window[cbName]){reject(new Error('Timeout'));delete window[cbName]}},15000);
+    setTimeout(()=>{if(window[cbName]){dbg('GET TIMEOUT: '+params.action,'err');reject(new Error('Timeout'));delete window[cbName]}},15000);
   });
 }
 
 function apiPost(data){
-  // Apps Script não aceita fetch POST cross-origin — usa JSONP via GET com payload
   return new Promise((resolve,reject)=>{
     const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
     const payload=encodeURIComponent(JSON.stringify(data));
-    window[cbName]=function(res){resolve(res);delete window[cbName];document.head.removeChild(s)};
+    const url=`${API}?method=POST&payload=${payload}&callback=${cbName}`;
+    dbg('POST: '+data.action,'info');
+    window[cbName]=function(res){
+      if(res && res.error){
+        dbg('POST ERRO API: '+data.action+' → '+res.error,'err');
+      } else {
+        dbg('POST OK: '+data.action+' → '+JSON.stringify(res).slice(0,80),'ok');
+      }
+      resolve(res);delete window[cbName];document.head.removeChild(s);
+    };
     const s=document.createElement('script');
-    s.src=`${API}?method=POST&payload=${payload}&callback=${cbName}`;
-    s.onerror=()=>{reject(new Error('Erro de rede'));delete window[cbName]};
+    s.src=url;
+    s.onerror=()=>{dbg('POST ERRO rede: '+data.action,'err');reject(new Error('Erro de rede'));delete window[cbName]};
     document.head.appendChild(s);
-    setTimeout(()=>{if(window[cbName]){reject(new Error('Timeout POST'));delete window[cbName]}},20000);
+    setTimeout(()=>{if(window[cbName]){dbg('POST TIMEOUT: '+data.action,'err');reject(new Error('Timeout POST'));delete window[cbName]}},20000);
   });
 }
 
@@ -1386,5 +1420,7 @@ diaAtual=new Date();
 diaComissao=new Date();
 init();
 </script>
+<button id="debug-toggle" onclick="toggleDebug()">🔧 Debug</button>
+<div id="debug-panel"><div id="debug-log"></div></div>
 </body>
 </html>
