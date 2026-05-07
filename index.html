@@ -142,13 +142,11 @@ select.form-input{cursor:pointer}
 .presenca-nome{font-weight:500;font-size:14px;color:var(--text)}
 .presenca-info{font-size:12px;color:var(--text3);margin-top:2px}
 .status-btns{display:flex;gap:6px}
-.status-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;font-family:'DM Sans',sans-serif}
-.status-btn.trabalhou{border-color:rgba(92,184,122,0.3);color:var(--green);background:transparent}
-.status-btn.trabalhou.active{background:var(--green-dim);border-color:var(--green)}
-.status-btn.folga{border-color:var(--border);color:var(--text3);background:transparent}
+.status-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--text3);background:transparent}
+.status-btn:hover{border-color:var(--border2);color:var(--text2)}
+.status-btn.trabalhou.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 .status-btn.folga.active{background:rgba(255,255,255,0.06);border-color:var(--border2);color:var(--text2)}
-.status-btn.falta{border-color:rgba(212,92,92,0.3);color:var(--red);background:transparent}
-.status-btn.falta.active{background:var(--red-dim);border-color:var(--red)}
+.status-btn.falta.active{background:var(--red-dim);border-color:var(--red);color:var(--red)}
 
 /* TURNO TABS */
 .turno-tabs{display:flex;gap:6px;margin-bottom:18px}
@@ -918,7 +916,7 @@ async function salvarPresencaDia(){
   });
   try{
     await Promise.all(promises);
-    toast('Presença salva com sucesso!','success');
+    toast('Presença salva! Agora você pode lançar a gorjeta do dia.','success');
   }catch(e){toast('Erro ao salvar presença.','error')}
 }
 
@@ -1004,21 +1002,35 @@ function renderDistribuicao(elId,dist,setor){
 }
 
 async function abrirModalComissao(){
-  // pegar presentes do dia
-  const ds=dataStr(diaAtual.getTime?diaAtual:diaComissao);
-  let registros=[];
-  try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
-  const presentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
-  const unicos=[...new Set(presentes)];
-  comissaoPresentes.salao=unicos.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
-  comissaoPresentes.cozinha=unicos.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
+  // Sincroniza diaComissao com diaAtual quando chamado da aba de presença
+  diaComissao=new Date(diaAtual.getFullYear(),diaAtual.getMonth(),diaAtual.getDate());
+  const ds=dataStr(diaComissao);
 
-  document.getElementById('comissao-data-info').innerHTML=`Data: <strong>${fmtBR(diaComissao)}</strong> · Salão: ${comissaoPresentes.salao.length} presentes · Cozinha: ${comissaoPresentes.cozinha.length} presentes`;
+  // Primeiro tenta usar presencaAtual (em memória, não salvo ainda)
+  let presentesIds=[];
+  const turnos=getTurnosDia(diaComissao);
+  funcionarios.forEach(f=>{
+    const trabalhou=turnos.some(t=>presencaAtual[getTurnoKey(f.id,t)]==='trabalhou');
+    if(trabalhou) presentesIds.push(f.id.toString());
+  });
+
+  // Se não há nada em memória, busca do servidor
+  if(presentesIds.length===0){
+    let registros=[];
+    try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
+    const savedPresentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
+    presentesIds=[...new Set(savedPresentes)];
+  }
+
+  comissaoPresentes.salao=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
+  comissaoPresentes.cozinha=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
+
+  document.getElementById('comissao-data-info').innerHTML=`Data: <strong>${fmtBR(diaComissao)}</strong> · Salão: <span style="color:var(--salao)">${comissaoPresentes.salao.length} presentes</span> · Cozinha: <span style="color:var(--cozinha)">${comissaoPresentes.cozinha.length} presentes</span>`;
   document.getElementById('c-bruto').value='';
   document.getElementById('c-desconto').value='15';
   document.getElementById('c-preview').style.display='none';
 
-  if(unicos.length===0){
+  if(presentesIds.length===0){
     document.getElementById('c-sem-presentes').style.display='block';
     document.getElementById('btn-salvar-comissao').disabled=true;
   } else {
@@ -1265,8 +1277,8 @@ function abrirModalFuncionario(){
   document.getElementById('modal-func-title').textContent='Novo Funcionário';
   ['nome','cargo'].forEach(f=>document.getElementById('f-'+f).value='');
   document.getElementById('f-setor').value='salao';
-  const defaults={ter_entrada:'17:00',ter_saida:'00:00',ter_intervalo:60,sab_dia_entrada:'10:30',sab_dia_saida:'17:00',sab_dia_intervalo:30,sab_noite_entrada:'17:00',sab_noite_saida:'23:30',sab_noite_intervalo:30,dom_dia_entrada:'10:30',dom_dia_saida:'17:00',dom_dia_intervalo:30,dom_noite_entrada:'17:00',dom_noite_saida:'23:30',dom_noite_intervalo:30};
-  Object.entries(defaults).forEach(([k,v])=>{const el=document.getElementById('f-'+k);if(el)el.value=v});
+  const camposEscala=['ter_entrada','ter_saida','ter_intervalo','sab_dia_entrada','sab_dia_saida','sab_dia_intervalo','sab_noite_entrada','sab_noite_saida','sab_noite_intervalo','dom_dia_entrada','dom_dia_saida','dom_dia_intervalo','dom_noite_entrada','dom_noite_saida','dom_noite_intervalo'];
+  camposEscala.forEach(c=>{const el=document.getElementById('f-'+c);if(el)el.value='';});
   abrirModal('modal-funcionario');
 }
 
