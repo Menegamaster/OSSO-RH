@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSSO — Gestão de RH</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0e0c;
+  --bg2: #1a1815;
+  --bg3: #232119;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0ece4;
+  --text2: #9a9488;
+  --text3: #5c584f;
+  --accent: #e8c547;
+  --accent2: #b8943a;
+  --accent-dim: rgba(232,197,71,0.12);
+  --salao: #4fa8d4;
+  --salao-dim: rgba(79,168,212,0.12);
+  --cozinha: #e07b54;
+  --cozinha-dim: rgba(224,123,84,0.12);
+  --green: #5cb87a;
+  --green-dim: rgba(92,184,122,0.12);
+  --red: #d45c5c;
+  --red-dim: rgba(212,92,92,0.12);
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4{font-family:'Syne',sans-serif}
+
+/* LAYOUT */
+#app{display:flex;min-height:100vh}
+#sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+#main{margin-left:220px;flex:1;padding:32px;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar-logo{padding:28px 20px 20px;border-bottom:1px solid var(--border)}
+.sidebar-logo .logo-mark{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--accent);letter-spacing:2px}
+.sidebar-logo .logo-sub{font-size:10px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+.sidebar-nav{padding:16px 12px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--text2);font-size:13.5px;font-weight:400;transition:all .15s;margin-bottom:2px;border:1px solid transparent}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);border-color:rgba(232,197,71,0.2)}
+.nav-icon{width:18px;height:18px;opacity:.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border)}
+.sidebar-footer .version{font-size:11px;color:var(--text3)}
+
+/* HEADER */
+.page-header{margin-bottom:28px}
+.page-header h2{font-size:24px;font-weight:700;color:var(--text)}
+.page-header p{font-size:13.5px;color:var(--text2);margin-top:4px}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.card-sm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* STAT CARD */
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.stat-value{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--text)}
+.stat-sub{font-size:12px;color:var(--text2);margin-top:3px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;transition:all .15s;border:1px solid transparent;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#1a1500;border-color:var(--accent)}
+.btn-primary:hover{background:#f0d060}
+.btn-secondary{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-secondary:hover{color:var(--text);border-color:var(--border2);background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--red);border-color:rgba(212,92,92,0.3)}
+.btn-danger:hover{background:var(--red-dim)}
+.btn-sm{padding:6px 14px;font-size:12.5px}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500}
+.badge-salao{background:var(--salao-dim);color:var(--salao)}
+.badge-cozinha{background:var(--cozinha-dim);color:var(--cozinha)}
+.badge-green{background:var(--green-dim);color:var(--green)}
+.badge-red{background:var(--red-dim);color:var(--red)}
+.badge-yellow{background:var(--accent-dim);color:var(--accent)}
+.badge-gray{background:rgba(255,255,255,0.06);color:var(--text2)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02);color:var(--text)}
+
+/* FORM */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 13px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border .15s}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--text3)}
+select.form-input{cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;transform:translateY(8px);transition:transform .2s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.modal-header h3{font-size:18px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;padding:4px}
+.modal-close:hover{color:var(--text)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-header-day{font-size:11px;color:var(--text3);text-align:center;padding:6px 0;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;font-size:13px;color:var(--text2);border:1px solid transparent;transition:all .15s;gap:3px}
+.cal-day:hover{background:var(--bg3);color:var(--text)}
+.cal-day.today{border-color:var(--accent);color:var(--accent)}
+.cal-day.fechado{opacity:.25;cursor:default}
+.cal-day.fechado:hover{background:none}
+.cal-day.outro-mes{opacity:.2}
+.cal-day-num{font-family:'Syne',sans-serif;font-weight:600;font-size:14px;line-height:1}
+.cal-dots{display:flex;gap:3px}
+.cal-dot{width:5px;height:5px;border-radius:50%}
+.cal-dot.presenca{background:var(--salao)}
+.cal-dot.comissao{background:var(--accent)}
+
+/* PRESENÇA */
+.presenca-grid{display:grid;gap:8px}
+.presenca-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.presenca-nome{font-weight:500;font-size:14px;color:var(--text)}
+.presenca-info{font-size:12px;color:var(--text3);margin-top:2px}
+.status-btns{display:flex;gap:6px}
+.status-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--text3);background:transparent}
+.status-btn:hover{border-color:var(--border2);color:var(--text2)}
+.status-btn.trabalhou.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.status-btn.folga.active{background:rgba(255,255,255,0.06);border-color:var(--border2);color:var(--text2)}
+.status-btn.falta.active{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+
+/* TURNO TABS */
+.turno-tabs{display:flex;gap:6px;margin-bottom:18px}
+.turno-tab{padding:7px 18px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:transparent;font-family:'DM Sans',sans-serif;transition:all .15s}
+.turno-tab.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(232,197,71,0.3)}
+
+/* SETOR SECTION */
+.setor-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;margin-top:18px}
+.setor-header h4{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+
+/* COMISSÃO RESULT */
+.comissao-result{background:var(--accent-dim);border:1px solid rgba(232,197,71,0.25);border-radius:var(--radius);padding:16px 20px;margin-top:16px}
+.comissao-dist-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)}
+.comissao-dist-nome{font-weight:500;color:var(--text);font-size:14px}
+.comissao-dist-valor{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--accent)}
+
+/* NAV DATE */
+.nav-date{display:flex;align-items:center;gap:12px}
+.nav-date button{background:var(--bg3);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.nav-date button:hover{color:var(--text);border-color:var(--border2)}
+.nav-date .date-label{font-family:'Syne',sans-serif;font-weight:600;font-size:15px;color:var(--text);min-width:160px;text-align:center}
+
+/* RESUMO */
+.resumo-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.resumo-card-header{padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.resumo-card-nome{font-weight:600;font-size:14px;color:var(--text)}
+.resumo-card-body{padding:12px 16px}
+.resumo-row{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:5px}
+.resumo-row strong{color:var(--text);font-weight:500}
+
+/* SPINNER */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+#loading-screen.hide{opacity:0;pointer-events:none}
+.loading-logo{font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:var(--accent);letter-spacing:4px;margin-bottom:8px}
+.loading-sub{font-size:12px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px}
+.loading-bar{width:200px;height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.loading-bar-fill{height:100%;background:var(--accent);border-radius:2px;animation:loadbar 1.5s ease-out forwards}
+@keyframes loadbar{from{width:0}to{width:100%}}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:10px;transform:translateX(120%);transition:transform .3s;max-width:300px}
+.toast-item.show{transform:translateX(0)}
+.toast-item.success{border-left:3px solid var(--green)}
+.toast-item.error{border-left:3px solid var(--red)}
+.toast-item.info{border-left:3px solid var(--accent)}
+
+/* ESCALA TABS */
+.escala-section{background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:10px}
+.escala-section h5{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;font-weight:600}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .empty-icon{font-size:36px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:14px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+.divider{height:1px;background:var(--border);margin:20px 0}
+.text-accent{color:var(--accent)}
+.text-salao{color:var(--salao)}
+.text-cozinha{color:var(--cozinha)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.text-muted{color:var(--text2)}
+.font-syne{font-family:'Syne',sans-serif}
+.fw-700{font-weight:700}
+
+@media(max-width:768px){
+  #sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap}
+  #main{margin-left:0}
+  .sidebar-nav{display:flex;flex-direction:row;padding:8px;overflow-x:auto;width:100%}
+  .nav-item span{display:none}
+  #sidebar{position:sticky;top:0}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .form-row,.form-row-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loading-logo">OSSO</div>
+  <div class="loading-sub">Gestão de RH</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODAL FUNCIONÁRIO -->
+<div class="modal-overlay" id="modal-funcionario">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-func-title">Novo Funcionário</h3>
+      <button class="modal-close" onclick="fecharModal('modal-funcionario')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nome</label>
+        <input class="form-input" id="f-nome" placeholder="Nome completo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cargo</label>
+        <input class="form-input" id="f-cargo" placeholder="Ex: Garçom">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Setor</label>
+      <select class="form-input" id="f-setor">
+        <option value="salao">Salão</option>
+        <option value="cozinha">Cozinha</option>
+      </select>
+    </div>
+    <div class="divider"></div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px;text-transform:uppercase;letter-spacing:.8px;font-weight:600">Escala Semanal</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">Seg = fechado. Deixe entrada/saída em branco para dias de folga.</p>
+
+    <!-- TER-SEX -->
+    <div class="escala-section">
+      <h5>Terça a Sexta</h5>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Entrada</label>
+          <input class="form-input" id="f-ter_entrada" type="time" value="17:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saída</label>
+          <input class="form-input" id="f-ter_saida" type="time" value="00:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" id="f-ter_intervalo" type="number" value="60" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- SAB DIA -->
+    <div class="escala-section">
+      <h5>Sábado — Turno Dia</h5>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Entrada</label>
+          <input class="form-input" id="f-sab_dia_entrada" type="time" value="10:30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saída</label>
+          <input class="form-input" id="f-sab_dia_saida" type="time" value="17:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" id="f-sab_dia_intervalo" type="number" value="30" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- SAB NOITE -->
+    <div class="escala-section">
+      <h5>Sábado — Turno Noite</h5>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Entrada</label>
+          <input class="form-input" id="f-sab_noite_entrada" type="time" value="17:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saída</label>
+          <input class="form-input" id="f-sab_noite_saida" type="time" value="23:30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" id="f-sab_noite_intervalo" type="number" value="30" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- DOM DIA -->
+    <div class="escala-section">
+      <h5>Domingo — Turno Dia</h5>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Entrada</label>
+          <input class="form-input" id="f-dom_dia_entrada" type="time" value="10:30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saída</label>
+          <input class="form-input" id="f-dom_dia_saida" type="time" value="17:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" id="f-dom_dia_intervalo" type="number" value="30" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- DOM NOITE -->
+    <div class="escala-section">
+      <h5>Domingo — Turno Noite</h5>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Entrada</label>
+          <input class="form-input" id="f-dom_noite_entrada" type="time" value="17:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Saída</label>
+          <input class="form-input" id="f-dom_noite_saida" type="time" value="23:30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" id="f-dom_noite_intervalo" type="number" value="30" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modal-funcionario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFuncionario()">Salvar Funcionário</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COMISSÃO -->
+<div class="modal-overlay" id="modal-comissao">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Lançar Gorjeta / Comissão</h3>
+      <button class="modal-close" onclick="fecharModal('modal-comissao')">✕</button>
+    </div>
+    <div id="comissao-data-info" style="font-size:13px;color:var(--text2);margin-bottom:16px"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Valor Bruto (R$)</label>
+        <input class="form-input" id="c-bruto" type="number" step="0.01" placeholder="0,00" oninput="calcularComissao()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Desconto Cartão (%)</label>
+        <input class="form-input" id="c-desconto" type="number" step="0.1" value="15" oninput="calcularComissao()">
+      </div>
+    </div>
+    <div class="comissao-result" id="c-preview" style="display:none">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;color:var(--text2)">Valor líquido</span>
+        <span id="c-liquido" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent)"></span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Salão (65%)</div>
+      <div id="c-dist-salao"></div>
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;margin-top:14px">Cozinha (35%)</div>
+      <div id="c-dist-cozinha"></div>
+    </div>
+    <div id="c-sem-presentes" style="display:none;padding:16px;background:var(--bg3);border-radius:8px;font-size:13.5px;color:var(--text2)">
+      ⚠️ Nenhum funcionário marcado como presente. Registre a presença antes de lançar a comissão.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modal-comissao')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-comissao" onclick="salvarComissao()">Salvar Comissão</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">OSSO</div>
+      <div class="logo-sub">Gestão de RH</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="navTo('calendario')" data-page="calendario">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendário</span>
+      </div>
+      <div class="nav-item" onclick="navTo('presenca')" data-page="presenca">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+        <span>Presença</span>
+      </div>
+      <div class="nav-item" onclick="navTo('comissao')" data-page="comissao">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Comissão</span>
+      </div>
+      <div class="nav-item" onclick="navTo('resumo-semanal')" data-page="resumo-semanal">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Resumo Semanal</span>
+      </div>
+      <div class="nav-item" onclick="navTo('resumo-mensal')" data-page="resumo-mensal">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Resumo Mensal</span>
+      </div>
+      <div class="nav-item" onclick="navTo('funcionarios')" data-page="funcionarios">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Funcionários</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="version">v1.0 · OSSO RH</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="main">
+    <!-- CALENDÁRIO -->
+    <div id="page-calendario" class="page">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Calendário</h2>
+            <p>Visão geral do mês — clique em um dia para ver a presença</p>
+          </div>
+          <div class="nav-date">
+            <button onclick="navegarMes(-1)">‹</button>
+            <span class="date-label" id="cal-mes-label"></span>
+            <button onclick="navegarMes(1)">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cal-grid" id="cal-headers"></div>
+        <div style="height:8px"></div>
+        <div class="cal-grid" id="cal-body"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2)">
+          <div class="cal-dot presenca"></div>Presença registrada
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2)">
+          <div class="cal-dot comissao"></div>Comissão registrada
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESENÇA -->
+    <div id="page-presenca" class="page" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Presença</h2>
+            <p>Marque quem trabalhou, faltou ou tirou folga</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="nav-date">
+              <button onclick="navegarDia(-1)">‹</button>
+              <span class="date-label" id="presenca-dia-label"></span>
+              <button onclick="navegarDia(1)">›</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="salvarPresencaDia()">Salvar Presença</button>
+          </div>
+        </div>
+      </div>
+      <div id="presenca-fechado" style="display:none" class="empty-state">
+        <div class="empty-icon">🔒</div>
+        <p>Segunda-feira — O OSSO não abre às segundas-feiras.</p>
+      </div>
+      <div id="presenca-content" style="display:none">
+        <div class="turno-tabs" id="turno-tabs"></div>
+        <div class="setor-header">
+          <span class="badge badge-salao">Salão</span>
+          <h4 style="color:var(--salao)">Salão</h4>
+        </div>
+        <div class="presenca-grid" id="presenca-salao"></div>
+        <div class="setor-header" style="margin-top:20px">
+          <span class="badge badge-cozinha">Cozinha</span>
+          <h4 style="color:var(--cozinha)">Cozinha</h4>
+        </div>
+        <div class="presenca-grid" id="presenca-cozinha"></div>
+        <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="marcarTodos('trabalhou')">✓ Todos trabalharam</button>
+          <button class="btn btn-secondary btn-sm" onclick="marcarTodos('folga')">Todos folga</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalComissao()">+ Lançar Gorjeta do Dia</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMISSÃO -->
+    <div id="page-comissao" class="page" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Gorjeta / Comissão</h2>
+            <p>Lance o fechamento do caixa e distribua entre a equipe</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="nav-date">
+              <button onclick="navegarDiaComissao(-1)">‹</button>
+              <span class="date-label" id="comissao-dia-label"></span>
+              <button onclick="navegarDiaComissao(1)">›</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalComissao()">+ Lançar Gorjeta</button>
+          </div>
+        </div>
+      </div>
+      <div id="comissao-dia-content">
+        <div class="empty-state" id="comissao-vazio">
+          <div class="empty-icon">💰</div>
+          <p>Nenhuma gorjeta registrada para este dia.</p>
+        </div>
+        <div id="comissao-registrada" style="display:none">
+          <div class="grid-2" style="margin-bottom:16px">
+            <div class="stat-card">
+              <div class="stat-label">Valor bruto</div>
+              <div class="stat-value" id="cd-bruto"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Valor líquido</div>
+              <div class="stat-value text-accent" id="cd-liquido"></div>
+              <div class="stat-sub" id="cd-desconto"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Distribuição</div>
+            <div class="setor-header"><span class="badge badge-salao">Salão</span><h4 style="color:var(--salao)">Salão (65%)</h4></div>
+            <div id="cd-dist-salao"></div>
+            <div class="setor-header" style="margin-top:16px"><span class="badge badge-cozinha">Cozinha</span><h4 style="color:var(--cozinha)">Cozinha (35%)</h4></div>
+            <div id="cd-dist-cozinha"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESUMO SEMANAL -->
+    <div id="page-resumo-semanal" class="page" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Resumo Semanal</h2>
+            <p>Comissão acumulada de seg a dom — pagar na próxima segunda</p>
+          </div>
+          <div class="nav-date">
+            <button onclick="navegarSemana(-1)">‹</button>
+            <span class="date-label" id="semana-label"></span>
+            <button onclick="navegarSemana(1)">›</button>
+          </div>
+        </div>
+      </div>
+      <div id="resumo-semanal-content"></div>
+    </div>
+
+    <!-- RESUMO MENSAL -->
+    <div id="page-resumo-mensal" class="page" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Resumo Mensal</h2>
+            <p>Totais de horas e comissão por funcionário</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="nav-date">
+              <button onclick="navegarMesResumo(-1)">‹</button>
+              <span class="date-label" id="resumo-mes-label"></span>
+              <button onclick="navegarMesResumo(1)">›</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="exportarPDF()">↓ Exportar PDF</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap" id="resumo-mensal-table"></div>
+      </div>
+    </div>
+
+    <!-- FUNCIONÁRIOS -->
+    <div id="page-funcionarios" class="page" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Funcionários</h2>
+            <p>Cadastro e escalas da equipe</p>
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalFuncionario()">+ Novo Funcionário</button>
+        </div>
+      </div>
+      <div class="setor-header"><span class="badge badge-salao">Salão</span><h4 style="color:var(--salao)">Salão</h4></div>
+      <div id="lista-salao" style="margin-bottom:24px"></div>
+      <div class="setor-header"><span class="badge badge-cozinha">Cozinha</span><h4 style="color:var(--cozinha)">Cozinha</h4></div>
+      <div id="lista-cozinha"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbyvGVmYl_B4_KzDOh0H5YL4WLtX7ps-QyHunA20BUNY9B8gVUj0kvsvCRU_GACu5v4Z-Q/exec';
+
+// ============================================================
+// STATE
+// ============================================================
+let funcionarios = [];
+let presencaAtual = {}; // {funcId_turno: status}
+let diaAtual = new Date();
+let diaComissao = new Date();
+let mesCalendario = new Date();
+let mesResumo = new Date();
+let semanaOffset = 0;
+let turnoAtual = 'unico';
+let calDados = {}; // {YYYY-MM-DD: {presenca, comissao}}
+let editandoId = null;
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmt(d){return d.toISOString().slice(0,10)}
+function fmtBR(d){return d.toLocaleDateString('pt-BR')}
+function fmtMes(d){return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}
+function fmtMoeda(v){return 'R$ '+Number(v).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.')}
+function diaSemana(d){return d.getDay()} // 0=dom,1=seg,...,6=sab
+function isSeg(d){return diaSemana(d)===1}
+function isSabDom(d){return diaSemana(d)===0||diaSemana(d)===6}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+
+function dataStr(d){
+  // garante formato YYYY-MM-DD sem problemas de timezone
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+function dataFromStr(s){
+  const [y,m,d]=s.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+
+function toast(msg, tipo='info'){
+  const t=document.getElementById('toast');
+  const el=document.createElement('div');
+  el.className=`toast-item ${tipo}`;
+  el.textContent=msg;
+  t.appendChild(el);
+  setTimeout(()=>el.classList.add('show'),10);
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300)},3500);
+}
+
+function abrirModal(id){document.getElementById(id).classList.add('open')}
+function fecharModal(id){document.getElementById(id).classList.remove('open')}
+
+// ============================================================
+// API
+// ============================================================
+function apiGet(params){
+  return new Promise((resolve,reject)=>{
+    const cbName='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const qs=Object.entries(params).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+    window[cbName]=function(data){resolve(data);delete window[cbName];document.head.removeChild(s)};
+    const s=document.createElement('script');
+    s.src=`${API}?${qs}&callback=${cbName}`;
+    s.onerror=()=>reject(new Error('Erro de rede'));
+    document.head.appendChild(s);
+    setTimeout(()=>{if(window[cbName]){reject(new Error('Timeout'));delete window[cbName]}},15000);
+  });
+}
+
+function apiPost(data){
+  return fetch(API,{
+    method:'POST',
+    mode:'no-cors',
+    body:JSON.stringify(data)
+  }).then(()=>({ok:true})).catch(e=>{throw e});
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init(){
+  try{
+    funcionarios=await apiGet({action:'getFuncionarios'});
+    renderFuncionarios();
+    renderCalendario();
+    renderPresenca();
+    renderComissaoDia();
+  }catch(e){
+    toast('Erro ao conectar com a API. Verifique a URL do Apps Script.','error');
+  }
+  setTimeout(()=>document.getElementById('loading-screen').classList.add('hide'),1200);
+}
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+function navTo(page){
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).style.display='block';
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  if(page==='calendario') renderCalendario();
+  if(page==='presenca') renderPresenca();
+  if(page==='comissao') renderComissaoDia();
+  if(page==='resumo-semanal') renderResumoSemanal();
+  if(page==='resumo-mensal') renderResumoMensal();
+  if(page==='funcionarios') renderFuncionarios();
+}
+
+// ============================================================
+// CALENDÁRIO
+// ============================================================
+const DIAS_PT=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function renderCalendario(){
+  const mes=mesCalendario;
+  document.getElementById('cal-mes-label').textContent=`${MESES_PT[mes.getMonth()]} ${mes.getFullYear()}`;
+  const h=document.getElementById('cal-headers');
+  h.innerHTML=DIAS_PT.map(d=>`<div class="cal-header-day">${d}</div>`).join('');
+
+  // buscar dados do mês
+  const inicio=dataStr(new Date(mes.getFullYear(),mes.getMonth(),1));
+  const fim=dataStr(new Date(mes.getFullYear(),mes.getMonth()+1,0));
+  let presencas=[],comissoes=[];
+  try{
+    [presencas,comissoes]=await Promise.all([
+      apiGet({action:'getPresencaRange',inicio,fim}),
+      apiGet({action:'getComissaoRange',inicio,fim})
+    ]);
+  }catch(e){}
+
+  const presSet=new Set(presencas.filter(p=>p.status==='trabalhou').map(p=>p.data));
+  const comSet=new Set(comissoes.map(c=>c.data));
+
+  const body=document.getElementById('cal-body');
+  body.innerHTML='';
+  const primeiro=new Date(mes.getFullYear(),mes.getMonth(),1);
+  const ultimo=new Date(mes.getFullYear(),mes.getMonth()+1,0);
+  const hoje=dataStr(new Date());
+  let diaInicio=primeiro.getDay(); // 0=dom
+  for(let i=0;i<diaInicio;i++){
+    const prev=new Date(mes.getFullYear(),mes.getMonth(),-(diaInicio-1-i));
+    body.appendChild(diaEl(prev,true,false,false,false));
+  }
+  for(let d=1;d<=ultimo.getDate();d++){
+    const data=new Date(mes.getFullYear(),mes.getMonth(),d);
+    const ds=dataStr(data);
+    const fechado=isSeg(data);
+    body.appendChild(diaEl(data,false,fechado,presSet.has(ds),comSet.has(ds)));
+  }
+  // completar semana
+  const restante=7-((diaInicio+ultimo.getDate())%7||7);
+  if(restante<7){for(let i=1;i<=restante;i++){const next=new Date(mes.getFullYear(),mes.getMonth()+1,i);body.appendChild(diaEl(next,true,false,false,false))}}
+}
+
+function diaEl(data,outroMes,fechado,temPresenca,temComissao){
+  const ds=dataStr(data);
+  const hoje=dataStr(new Date());
+  const div=document.createElement('div');
+  div.className='cal-day'+(outroMes?' outro-mes':'')+(fechado?' fechado':'')+(ds===hoje?' today':'');
+  div.innerHTML=`<span class="cal-day-num">${data.getDate()}</span><div class="cal-dots">${temPresenca?'<div class="cal-dot presenca"></div>':''}${temComissao?'<div class="cal-dot comissao"></div>':''}</div>`;
+  if(!outroMes&&!fechado){
+    div.onclick=()=>{diaAtual=data;navTo('presenca')};
+  }
+  return div;
+}
+
+function navegarMes(d){
+  mesCalendario=new Date(mesCalendario.getFullYear(),mesCalendario.getMonth()+d,1);
+  renderCalendario();
+}
+
+// ============================================================
+// PRESENÇA
+// ============================================================
+function getTurnosDia(data){
+  const ds=diaSemana(data);
+  if(ds===1) return []; // seg
+  if(ds===6||ds===0) return ['dia','noite'];
+  return ['unico'];
+}
+
+function getTurnoKey(funcId,turno){return `${funcId}_${turno}`}
+
+async function renderPresenca(){
+  const ds=diaSemana(diaAtual);
+  const label=document.getElementById('presenca-dia-label');
+  label.textContent=fmtBR(diaAtual)+' ('+DIAS_PT[ds]+')';
+
+  if(isSeg(diaAtual)){
+    document.getElementById('presenca-fechado').style.display='flex';
+    document.getElementById('presenca-content').style.display='none';
+    return;
+  }
+  document.getElementById('presenca-fechado').style.display='none';
+  document.getElementById('presenca-content').style.display='block';
+
+  const turnos=getTurnosDia(diaAtual);
+  turnoAtual=turnos[0];
+
+  // render tabs
+  const tabs=document.getElementById('turno-tabs');
+  if(turnos.length>1){
+    tabs.style.display='flex';
+    tabs.innerHTML=turnos.map(t=>`<button class="turno-tab ${t===turnoAtual?'active':''}" onclick="selecionarTurno('${t}')">${t==='dia'?'☀️ Turno Dia':'🌙 Turno Noite'}</button>`).join('');
+  } else {
+    tabs.style.display='none';
+  }
+
+  // carregar presença
+  presencaAtual={};
+  try{
+    const registros=await apiGet({action:'getPresenca',data:dataStr(diaAtual)});
+    registros.forEach(r=>{
+      presencaAtual[getTurnoKey(r.funcionario_id,r.turno||'unico')]=r.status;
+    });
+  }catch(e){}
+
+  renderGridPresenca();
+}
+
+function selecionarTurno(t){
+  turnoAtual=t;
+  document.querySelectorAll('.turno-tab').forEach(el=>{
+    el.classList.toggle('active',el.textContent.includes(t==='dia'?'Dia':'Noite'));
+  });
+  renderGridPresenca();
+}
+
+function renderGridPresenca(){
+  const salao=funcionarios.filter(f=>f.setor==='salao');
+  const cozinha=funcionarios.filter(f=>f.setor==='cozinha');
+  document.getElementById('presenca-salao').innerHTML=salao.map(f=>renderPresencaItem(f)).join('');
+  document.getElementById('presenca-cozinha').innerHTML=cozinha.map(f=>renderPresencaItem(f)).join('');
+}
+
+function renderPresencaItem(f){
+  const key=getTurnoKey(f.id,turnoAtual);
+  const st=presencaAtual[key]||'';
+  return `<div class="presenca-item">
+    <div>
+      <div class="presenca-nome">${f.nome}</div>
+      <div class="presenca-info">${f.cargo} · <span class="${f.setor==='salao'?'text-salao':'text-cozinha'}">${f.setor}</span></div>
+    </div>
+    <div class="status-btns">
+      <button class="status-btn trabalhou ${st==='trabalhou'?'active':''}" onclick="setStatus('${f.id}','trabalhou')">✓ Trabalhou</button>
+      <button class="status-btn folga ${st==='folga'?'active':''}" onclick="setStatus('${f.id}','folga')">Folga</button>
+      <button class="status-btn falta ${st==='falta'?'active':''}" onclick="setStatus('${f.id}','falta')">Falta</button>
+    </div>
+  </div>`;
+}
+
+function setStatus(funcId,status){
+  const key=getTurnoKey(funcId,turnoAtual);
+  presencaAtual[key]=status;
+  renderGridPresenca();
+}
+
+function marcarTodos(status){
+  funcionarios.forEach(f=>{
+    const key=getTurnoKey(f.id,turnoAtual);
+    presencaAtual[key]=status;
+  });
+  renderGridPresenca();
+}
+
+async function salvarPresencaDia(){
+  const ds=dataStr(diaAtual);
+  const turnos=getTurnosDia(diaAtual);
+  const promises=[];
+  funcionarios.forEach(f=>{
+    turnos.forEach(t=>{
+      const key=getTurnoKey(f.id,t);
+      const status=presencaAtual[key];
+      if(status){
+        const horas=calcularHoras(f,t,diaAtual,status);
+        promises.push(apiPost({
+          action:'salvarPresenca',
+          data:ds,
+          funcionario_id:f.id,
+          turno:t,
+          status,
+          horas_normais:horas.normais,
+          horas_noturnas:horas.noturnas
+        }));
+      }
+    });
+  });
+  try{
+    await Promise.all(promises);
+    toast('Presença salva com sucesso!','success');
+  }catch(e){toast('Erro ao salvar presença. Verifique a conexão.','error')}
+}
+
+function calcularHoras(f,turno,data,status){
+  if(status!=='trabalhou') return {normais:0,noturnas:0};
+  const ds=diaSemana(data);
+  let entrada,saida,intervalo;
+  if(ds===6){
+    if(turno==='dia'){entrada=f.sab_dia_entrada;saida=f.sab_dia_saida;intervalo=Number(f.sab_dia_intervalo)||0}
+    else{entrada=f.sab_noite_entrada;saida=f.sab_noite_saida;intervalo=Number(f.sab_noite_intervalo)||0}
+  } else if(ds===0){
+    if(turno==='dia'){entrada=f.dom_dia_entrada;saida=f.dom_dia_saida;intervalo=Number(f.dom_dia_intervalo)||0}
+    else{entrada=f.dom_noite_entrada;saida=f.dom_noite_saida;intervalo=Number(f.dom_noite_intervalo)||0}
+  } else {
+    entrada=f.ter_entrada;saida=f.ter_saida;intervalo=Number(f.ter_intervalo)||0;
+  }
+  if(!entrada||!saida) return {normais:0,noturnas:0};
+  const [eh,em]=entrada.split(':').map(Number);
+  let [sh,sm]=saida.split(':').map(Number);
+  let entMin=eh*60+em;
+  let saiMin=sh*60+sm;
+  if(saiMin<=entMin) saiMin+=24*60; // passou meia-noite
+  const totalMin=saiMin-entMin-intervalo;
+  // horas noturnas: 22h (1320min) até 5h (300min do dia seguinte = 1740)
+  const noiteIni=22*60,noiteFim=29*60; // 29h = 5h do dia seguinte
+  const trabIni=entMin,trabFim=saiMin;
+  const nIni=Math.max(trabIni,noiteIni);
+  const nFim=Math.min(trabFim,noiteFim);
+  const noturnasMin=Math.max(0,nFim-nIni);
+  const normaisMin=Math.max(0,totalMin-noturnasMin);
+  return {
+    normais:Math.round(normaisMin/60*100)/100,
+    noturnas:Math.round(noturnasMin/60*100)/100
+  };
+}
+
+function navegarDia(d){
+  diaAtual=new Date(diaAtual.getFullYear(),diaAtual.getMonth(),diaAtual.getDate()+d);
+  renderPresenca();
+}
+
+// ============================================================
+// COMISSÃO
+// ============================================================
+let comissaoPresentes={salao:[],cozinha:[]};
+
+async function renderComissaoDia(){
+  const ds=dataStr(diaComissao);
+  document.getElementById('comissao-dia-label').textContent=fmtBR(diaComissao)+' ('+DIAS_PT[diaSemana(diaComissao)]+')';
+  try{
+    const c=await apiGet({action:'getComissao',data:ds});
+    if(c){
+      document.getElementById('comissao-vazio').style.display='none';
+      document.getElementById('comissao-registrada').style.display='block';
+      document.getElementById('cd-bruto').textContent=fmtMoeda(c.valor_bruto);
+      document.getElementById('cd-liquido').textContent=fmtMoeda(c.valor_liquido);
+      document.getElementById('cd-desconto').textContent=`Desconto ${c.desconto_pct}% aplicado`;
+      renderDistribuicao('cd-dist-salao',c.distribuicao,'salao');
+      renderDistribuicao('cd-dist-cozinha',c.distribuicao,'cozinha');
+    } else {
+      document.getElementById('comissao-vazio').style.display='block';
+      document.getElementById('comissao-registrada').style.display='none';
+    }
+  }catch(e){}
+}
+
+function renderDistribuicao(elId,dist,setor){
+  const el=document.getElementById(elId);
+  const itens=Object.entries(dist).filter(([id])=>{
+    const f=funcionarios.find(x=>x.id.toString()===id.toString());
+    return f&&f.setor===setor;
+  });
+  el.innerHTML=itens.map(([id,val])=>{
+    const f=funcionarios.find(x=>x.id.toString()===id.toString());
+    return `<div class="comissao-dist-item">
+      <div>
+        <div class="comissao-dist-nome">${f?f.nome:id}</div>
+        <div style="font-size:12px;color:var(--text3)">${f?f.cargo:''}</div>
+      </div>
+      <div class="comissao-dist-valor">${fmtMoeda(val)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function abrirModalComissao(){
+  // Sincroniza diaComissao com diaAtual quando chamado da aba de presença
+  diaComissao=new Date(diaAtual.getFullYear(),diaAtual.getMonth(),diaAtual.getDate());
+  const ds=dataStr(diaComissao);
+
+  // Primeiro tenta usar presencaAtual (em memória, não salvo ainda)
+  let presentesIds=[];
+  const turnos=getTurnosDia(diaComissao);
+  funcionarios.forEach(f=>{
+    const trabalhou=turnos.some(t=>presencaAtual[getTurnoKey(f.id,t)]==='trabalhou');
+    if(trabalhou) presentesIds.push(f.id.toString());
+  });
+
+  // Se não há nada em memória, busca do servidor
+  if(presentesIds.length===0){
+    let registros=[];
+    try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
+    const savedPresentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
+    presentesIds=[...new Set(savedPresentes)];
+  }
+
+  comissaoPresentes.salao=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
+  comissaoPresentes.cozinha=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
+
+  document.getElementById('comissao-data-info').innerHTML=`Data: <strong>${fmtBR(diaComissao)}</strong> · Salão: <span style="color:var(--salao)">${comissaoPresentes.salao.length} presentes</span> · Cozinha: <span style="color:var(--cozinha)">${comissaoPresentes.cozinha.length} presentes</span>`;
+  document.getElementById('c-bruto').value='';
+  document.getElementById('c-desconto').value='15';
+  document.getElementById('c-preview').style.display='none';
+
+  if(presentesIds.length===0){
+    document.getElementById('c-sem-presentes').style.display='block';
+    document.getElementById('btn-salvar-comissao').disabled=true;
+  } else {
+    document.getElementById('c-sem-presentes').style.display='none';
+    document.getElementById('btn-salvar-comissao').disabled=false;
+  }
+  abrirModal('modal-comissao');
+}
+
+function calcularComissao(){
+  const bruto=parseFloat(document.getElementById('c-bruto').value)||0;
+  const desc=parseFloat(document.getElementById('c-desconto').value)||0;
+  if(bruto<=0){document.getElementById('c-preview').style.display='none';return}
+  const liquido=bruto*(1-desc/100);
+  document.getElementById('c-liquido').textContent=fmtMoeda(liquido);
+  document.getElementById('c-preview').style.display='block';
+
+  const distSalao=calcDistSalao(liquido*0.65,comissaoPresentes.salao);
+  const distCozinha=calcDistCozinha(liquido*0.35,comissaoPresentes.cozinha);
+
+  document.getElementById('c-dist-salao').innerHTML=renderDistModal(distSalao);
+  document.getElementById('c-dist-cozinha').innerHTML=renderDistModal(distCozinha);
+}
+
+function calcDistSalao(total,ids){
+  if(ids.length===0) return {};
+  // Tatiane recebe 15% a mais que os outros
+  const tatianeId=ids.find(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.cargo==='Gerente'});
+  const outros=ids.filter(id=>id!==tatianeId);
+  let base,dist={};
+  if(tatianeId){
+    // n_outros cotas de 1, tatiane cota de 1.15
+    const n=outros.length;
+    const totalCotas=n*1+1.15;
+    base=total/totalCotas;
+    dist[tatianeId]=base*1.15;
+    outros.forEach(id=>dist[id]=base);
+  } else {
+    base=total/ids.length;
+    ids.forEach(id=>dist[id]=base);
+  }
+  return dist;
+}
+
+function calcDistCozinha(total,ids){
+  if(ids.length===0) return {};
+  const base=total/ids.length;
+  const dist={};
+  ids.forEach(id=>dist[id]=base);
+  return dist;
+}
+
+function renderDistModal(dist){
+  return Object.entries(dist).map(([id,val])=>{
+    const f=funcionarios.find(x=>x.id.toString()===id.toString());
+    return `<div class="comissao-dist-item">
+      <span class="comissao-dist-nome">${f?f.nome:id}</span>
+      <span class="comissao-dist-valor">${fmtMoeda(val)}</span>
+    </div>`;
+  }).join('');
+}
+
+async function salvarComissao(){
+  const bruto=parseFloat(document.getElementById('c-bruto').value)||0;
+  const desc=parseFloat(document.getElementById('c-desconto').value)||0;
+  if(bruto<=0){toast('Informe o valor bruto.','error');return}
+  const liquido=bruto*(1-desc/100);
+  const distSalao=calcDistSalao(liquido*0.65,comissaoPresentes.salao);
+  const distCozinha=calcDistCozinha(liquido*0.35,comissaoPresentes.cozinha);
+  const dist={...distSalao,...distCozinha};
+  const ds=dataStr(diaComissao);
+  const btn=document.getElementById('btn-salvar-comissao');
+  btn.disabled=true;btn.textContent='Salvando...';
+  try{
+    // 1. Salva presença automaticamente (quem está em memória)
+    const turnos=getTurnosDia(diaComissao);
+    if(turnos.length>0){
+      const presPromises=[];
+      funcionarios.forEach(f=>{
+        turnos.forEach(t=>{
+          const key=getTurnoKey(f.id,t);
+          const status=presencaAtual[key];
+          if(status){
+            const horas=calcularHoras(f,t,diaComissao,status);
+            presPromises.push(apiPost({action:'salvarPresenca',data:ds,funcionario_id:f.id,turno:t,status,horas_normais:horas.normais,horas_noturnas:horas.noturnas}));
+          }
+        });
+      });
+      if(presPromises.length>0) await Promise.all(presPromises);
+    }
+    // 2. Salva comissão
+    await apiPost({
+      action:'salvarComissao',
+      data:ds,
+      valor_bruto:bruto,
+      desconto_pct:desc,
+      valor_liquido:liquido,
+      presentes_salao:comissaoPresentes.salao,
+      presentes_cozinha:comissaoPresentes.cozinha,
+      distribuicao:dist
+    });
+    toast('Presença e comissão salvas com sucesso!','success');
+    fecharModal('modal-comissao');
+    renderComissaoDia();
+  }catch(e){
+    toast('Erro ao salvar. Verifique a conexão.','error');
+  } finally {
+    btn.disabled=false;btn.textContent='Salvar Comissão';
+  }
+}
+
+function navegarDiaComissao(d){
+  diaComissao=new Date(diaComissao.getFullYear(),diaComissao.getMonth(),diaComissao.getDate()+d);
+  diaAtual=diaComissao;
+  renderComissaoDia();
+}
+
+// ============================================================
+// RESUMO SEMANAL
+// ============================================================
+function getSemana(offset){
+  const hoje=new Date();
+  const ds=hoje.getDay();
+  const seg=new Date(hoje);
+  seg.setDate(hoje.getDate()-((ds===0?7:ds)-1)+offset*7);
+  const dom=new Date(seg);
+  dom.setDate(seg.getDate()+6);
+  return{seg,dom};
+}
+
+async function renderResumoSemanal(){
+  const{seg,dom}=getSemana(semanaOffset);
+  document.getElementById('semana-label').textContent=fmtBR(seg)+' – '+fmtBR(dom);
+  const inicio=dataStr(seg),fim=dataStr(dom);
+  let comissoes=[];
+  try{comissoes=await apiGet({action:'getComissaoRange',inicio,fim})}catch(e){}
+
+  const totais={};
+  funcionarios.forEach(f=>totais[f.id]={nome:f.nome,cargo:f.cargo,setor:f.setor,total:0});
+  comissoes.forEach(c=>{
+    const dist=c.distribuicao||{};
+    Object.entries(dist).forEach(([id,val])=>{
+      if(totais[id])totais[id].total+=Number(val);
+    });
+  });
+
+  const salao=Object.values(totais).filter(f=>f.setor==='salao');
+  const cozinha=Object.values(totais).filter(f=>f.setor==='cozinha');
+  const totalGeral=Object.values(totais).reduce((a,f)=>a+f.total,0);
+
+  let html=`<div class="grid-2" style="margin-bottom:20px">
+    <div class="stat-card"><div class="stat-label">Total da Semana</div><div class="stat-value text-accent">${fmtMoeda(totalGeral)}</div></div>
+    <div class="stat-card"><div class="stat-label">Dias com gorjeta</div><div class="stat-value">${comissoes.length}</div></div>
+  </div>`;
+
+  html+=`<div class="card" style="margin-bottom:16px">
+    <div class="setor-header"><span class="badge badge-salao">Salão</span><h4 style="color:var(--salao)">Salão</h4></div>
+    <div class="presenca-grid">
+    ${salao.map(f=>`<div class="presenca-item">
+      <div><div class="presenca-nome">${f.nome}</div><div class="presenca-info">${f.cargo}</div></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--accent)">${fmtMoeda(f.total)}</div>
+    </div>`).join('')}
+    </div>
+  </div>`;
+
+  html+=`<div class="card">
+    <div class="setor-header"><span class="badge badge-cozinha">Cozinha</span><h4 style="color:var(--cozinha)">Cozinha</h4></div>
+    <div class="presenca-grid">
+    ${cozinha.map(f=>`<div class="presenca-item">
+      <div><div class="presenca-nome">${f.nome}</div><div class="presenca-info">${f.cargo}</div></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--accent)">${fmtMoeda(f.total)}</div>
+    </div>`).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('resumo-semanal-content').innerHTML=html;
+}
+
+function navegarSemana(d){semanaOffset+=d;renderResumoSemanal()}
+
+// ============================================================
+// RESUMO MENSAL
+// ============================================================
+async function renderResumoMensal(){
+  const mes=mesResumo;
+  document.getElementById('resumo-mes-label').textContent=`${MESES_PT[mes.getMonth()]} ${mes.getFullYear()}`;
+  const inicio=dataStr(new Date(mes.getFullYear(),mes.getMonth(),1));
+  const fim=dataStr(new Date(mes.getFullYear(),mes.getMonth()+1,0));
+  let presencas=[],comissoes=[];
+  try{[presencas,comissoes]=await Promise.all([
+    apiGet({action:'getPresencaRange',inicio,fim}),
+    apiGet({action:'getComissaoRange',inicio,fim})
+  ])}catch(e){}
+
+  const totais={};
+  funcionarios.forEach(f=>totais[f.id]={nome:f.nome,cargo:f.cargo,setor:f.setor,hNormais:0,hNoturnas:0,comissao:0,diasTrab:0});
+  presencas.forEach(p=>{
+    if(p.status==='trabalhou'&&totais[p.funcionario_id]){
+      totais[p.funcionario_id].hNormais+=Number(p.horas_normais)||0;
+      totais[p.funcionario_id].hNoturnas+=Number(p.horas_noturnas)||0;
+      totais[p.funcionario_id].diasTrab++;
+    }
+  });
+  comissoes.forEach(c=>{
+    const dist=c.distribuicao||{};
+    Object.entries(dist).forEach(([id,val])=>{if(totais[id])totais[id].comissao+=Number(val)});
+  });
+
+  const rows=Object.values(totais);
+  const html=`<table>
+    <thead><tr>
+      <th>Funcionário</th><th>Cargo</th><th>Setor</th><th>Dias</th>
+      <th>H. Normais</th><th>H. Noturnas</th><th>Comissão</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map(r=>`<tr>
+      <td style="color:var(--text);font-weight:500">${r.nome}</td>
+      <td>${r.cargo}</td>
+      <td><span class="badge ${r.setor==='salao'?'badge-salao':'badge-cozinha'}">${r.setor}</span></td>
+      <td>${r.diasTrab}</td>
+      <td>${r.hNormais.toFixed(1)}h</td>
+      <td style="color:var(--accent)">${r.hNoturnas.toFixed(1)}h</td>
+      <td style="color:var(--green);font-weight:500">${fmtMoeda(r.comissao)}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table>`;
+  document.getElementById('resumo-mensal-table').innerHTML=html;
+}
+
+function navegarMesResumo(d){
+  mesResumo=new Date(mesResumo.getFullYear(),mesResumo.getMonth()+d,1);
+  renderResumoMensal();
+}
+
+function exportarPDF(){window.print()}
+
+// ============================================================
+// FUNCIONÁRIOS
+// ============================================================
+function renderFuncionarios(){
+  const salao=funcionarios.filter(f=>f.setor==='salao');
+  const cozinha=funcionarios.filter(f=>f.setor==='cozinha');
+  document.getElementById('lista-salao').innerHTML=renderListaFunc(salao);
+  document.getElementById('lista-cozinha').innerHTML=renderListaFunc(cozinha);
+}
+
+function renderListaFunc(lista){
+  if(lista.length===0) return '<div class="empty-state"><p>Nenhum funcionário cadastrado.</p></div>';
+  return `<div class="card"><div class="table-wrap"><table>
+    <thead><tr><th>Nome</th><th>Cargo</th><th>Setor</th><th>Escala padrão</th><th></th></tr></thead>
+    <tbody>
+    ${lista.map(f=>`<tr>
+      <td style="color:var(--text);font-weight:500">${f.nome}</td>
+      <td>${f.cargo}</td>
+      <td><span class="badge ${f.setor==='salao'?'badge-salao':'badge-cozinha'}">${f.setor}</span></td>
+      <td style="font-size:12px">${f.ter_entrada||'–'} – ${f.ter_saida||'–'}</td>
+      <td><div class="btn-group">
+        <button class="btn btn-secondary btn-sm" onclick="editarFuncionario('${f.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="removerFuncionario('${f.id}','${f.nome}')">Remover</button>
+      </div></td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div></div>`;
+}
+
+function abrirModalFuncionario(){
+  editandoId=null;
+  document.getElementById('modal-func-title').textContent='Novo Funcionário';
+  ['nome','cargo'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('f-setor').value='salao';
+  const camposEscala=['ter_entrada','ter_saida','ter_intervalo','sab_dia_entrada','sab_dia_saida','sab_dia_intervalo','sab_noite_entrada','sab_noite_saida','sab_noite_intervalo','dom_dia_entrada','dom_dia_saida','dom_dia_intervalo','dom_noite_entrada','dom_noite_saida','dom_noite_intervalo'];
+  camposEscala.forEach(c=>{const el=document.getElementById('f-'+c);if(el)el.value='';});
+  abrirModal('modal-funcionario');
+}
+
+function editarFuncionario(id){
+  const f=funcionarios.find(x=>x.id.toString()===id.toString());
+  if(!f)return;
+  editandoId=id;
+  document.getElementById('modal-func-title').textContent='Editar Funcionário';
+  document.getElementById('f-nome').value=f.nome||'';
+  document.getElementById('f-cargo').value=f.cargo||'';
+  document.getElementById('f-setor').value=f.setor||'salao';
+  const campos=['ter_entrada','ter_saida','ter_intervalo','sab_dia_entrada','sab_dia_saida','sab_dia_intervalo','sab_noite_entrada','sab_noite_saida','sab_noite_intervalo','dom_dia_entrada','dom_dia_saida','dom_dia_intervalo','dom_noite_entrada','dom_noite_saida','dom_noite_intervalo'];
+  campos.forEach(c=>{const el=document.getElementById('f-'+c);if(el)el.value=f[c]||''});
+  abrirModal('modal-funcionario');
+}
+
+async function salvarFuncionario(){
+  const dados={
+    nome:document.getElementById('f-nome').value.trim(),
+    cargo:document.getElementById('f-cargo').value.trim(),
+    setor:document.getElementById('f-setor').value,
+  };
+  if(!dados.nome){toast('Informe o nome do funcionário.','error');return}
+  const campos=['ter_entrada','ter_saida','ter_intervalo','sab_dia_entrada','sab_dia_saida','sab_dia_intervalo','sab_noite_entrada','sab_noite_saida','sab_noite_intervalo','dom_dia_entrada','dom_dia_saida','dom_dia_intervalo','dom_noite_entrada','dom_noite_saida','dom_noite_intervalo'];
+  campos.forEach(c=>{const el=document.getElementById('f-'+c);if(el)dados[c]=el.value});
+  // seg sempre vazio
+  ['seg_entrada','seg_saida','seg_intervalo','qua_entrada','qua_saida','qua_intervalo','qui_entrada','qui_saida','qui_intervalo','sex_entrada','sex_saida','sex_intervalo'].forEach(c=>{
+    if(c.startsWith('seg'))dados[c]='';
+    else if(!dados[c]){
+      const base=c.replace(/qua_|qui_|sex_/,'ter_');
+      dados[c]=dados[base]||'';
+    }
+  });
+  // copiar ter para qua/qui/sex
+  ['qua','qui','sex'].forEach(dia=>{
+    ['entrada','saida','intervalo'].forEach(p=>{
+      dados[`${dia}_${p}`]=dados[`ter_${p}`];
+    });
+  });
+  try{
+    if(editandoId){
+      dados.action='editarFuncionario';dados.id=editandoId;
+      await apiPost(dados);
+      toast('Funcionário atualizado!','success');
+    } else {
+      dados.action='salvarFuncionario';
+      const r=await apiPost(dados);
+      dados.id=r.id;
+      funcionarios.push(dados);
+    }
+    funcionarios=await apiGet({action:'getFuncionarios'});
+    renderFuncionarios();
+    fecharModal('modal-funcionario');
+  }catch(e){toast('Erro ao salvar.','error')}
+}
+
+async function removerFuncionario(id,nome){
+  if(!confirm(`Remover ${nome}?`))return;
+  try{
+    await apiPost({action:'deletarFuncionario',id});
+    funcionarios=await apiGet({action:'getFuncionarios'});
+    renderFuncionarios();
+    toast('Funcionário removido.','info');
+  }catch(e){toast('Erro ao remover.','error')}
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+diaAtual=new Date();
+diaComissao=new Date();
+init();
+</script>
+</body>
+</html>
