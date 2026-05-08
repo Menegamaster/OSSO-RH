@@ -58,7 +58,7 @@ h1,h2,h3,h4{font-family:'Playfair Display',serif}
 .page-header p{font-size:13.5px;color:var(--text2);margin-top:4px}
 
 /* CARDS */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
 .card-sm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .card-title{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
 
@@ -123,15 +123,18 @@ select.form-input{cursor:pointer}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
 
 /* CALENDAR */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-header-day{font-size:11px;color:var(--text3);text-align:center;padding:6px 0;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
-.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;font-size:13px;color:var(--text2);border:1px solid transparent;transition:all .15s;gap:3px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-header-day{font-size:13px;color:var(--text2);text-align:center;padding:6px 0;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;font-size:13px;color:var(--text2);border:2px solid transparent;transition:all .15s;gap:2px;padding:4px}
 .cal-day:hover{background:var(--bg3);color:var(--text)}
 .cal-day.today{border-color:var(--accent);color:var(--accent)}
 .cal-day.fechado{opacity:.25;cursor:default}
 .cal-day.fechado:hover{background:none}
 .cal-day.outro-mes{opacity:.2}
-.cal-day-num{font-family:'Playfair Display',serif;font-weight:600;font-size:14px;line-height:1}
+.cal-day.completo{border-color:#1a6e3a!important;background:rgba(26,110,58,0.07)}
+.cal-day.parcial{border-color:#c8960a!important;background:rgba(200,150,10,0.07)}
+.cal-check{position:absolute;bottom:3px;right:4px;font-size:11px;color:#1a6e3a;font-weight:700;line-height:1}
+.cal-day-num{font-family:'Playfair Display',serif;font-weight:700;font-size:17px;line-height:1}
 .cal-dots{display:flex;gap:3px}
 .cal-dot{width:5px;height:5px;border-radius:50%}
 .cal-dot.presenca{background:var(--salao)}
@@ -840,34 +843,64 @@ async function renderCalendario(){
 
   const presSet=new Set(presencas.filter(p=>p.status==='trabalhou').map(p=>p.data));
   const comSet=new Set(comissoes.map(c=>c.data));
+  // Count distinct turnos with presença per day
+  const presCountMap={};
+  presencas.filter(p=>p.status==='trabalhou').forEach(p=>{
+    if(!presCountMap[p.data]) presCountMap[p.data]=new Set();
+    presCountMap[p.data].add(p.turno);
+  });
 
   const body=document.getElementById('cal-body');
   body.innerHTML='';
   const primeiro=new Date(mes.getFullYear(),mes.getMonth(),1);
   const ultimo=new Date(mes.getFullYear(),mes.getMonth()+1,0);
   const hoje=dataStr(new Date());
-  let diaInicio=primeiro.getDay(); // 0=dom
+  let diaInicio=primeiro.getDay();
   for(let i=0;i<diaInicio;i++){
     const prev=new Date(mes.getFullYear(),mes.getMonth(),-(diaInicio-1-i));
-    body.appendChild(diaEl(prev,true,false,false,false));
+    body.appendChild(diaEl(prev,true,false,false,false,0,0));
   }
   for(let d=1;d<=ultimo.getDate();d++){
     const data=new Date(mes.getFullYear(),mes.getMonth(),d);
     const ds=dataStr(data);
     const fechado=isSeg(data);
-    body.appendChild(diaEl(data,false,fechado,presSet.has(ds),comSet.has(ds)));
+    const pCount=presCountMap[ds]?presCountMap[ds].size:0;
+    body.appendChild(diaEl(data,false,fechado,presSet.has(ds),comSet.has(ds),pCount,0));
   }
-  // completar semana
   const restante=7-((diaInicio+ultimo.getDate())%7||7);
-  if(restante<7){for(let i=1;i<=restante;i++){const next=new Date(mes.getFullYear(),mes.getMonth()+1,i);body.appendChild(diaEl(next,true,false,false,false))}}
+  if(restante<7){for(let i=1;i<=restante;i++){const next=new Date(mes.getFullYear(),mes.getMonth()+1,i);body.appendChild(diaEl(next,true,false,false,false,0,0))}}
 }
 
-function diaEl(data,outroMes,fechado,temPresenca,temComissao){
+function diaEl(data,outroMes,fechado,temPresenca,temComissao,presencaCount,presencaTotal){
   const ds=dataStr(data);
   const hoje=dataStr(new Date());
+  const diaSem=data.getDay();
+  const isFimSemana=(diaSem===0||diaSem===6);
+  // Lógica de status visual
+  let statusClass='';
+  let checkHtml='';
+  if(!outroMes&&!fechado){
+    if(isFimSemana){
+      // Sáb/Dom: precisa de 2 turnos completos (presença+comissão em ambos)
+      if(temPresenca&&temComissao&&presencaCount>=2){
+        statusClass=' completo';
+        checkHtml='<span class="cal-check">✓</span>';
+      } else if(temPresenca||temComissao){
+        statusClass=' parcial';
+      }
+    } else {
+      // Ter-Sex: 1 turno
+      if(temPresenca&&temComissao){
+        statusClass=' completo';
+        checkHtml='<span class="cal-check">✓</span>';
+      } else if(temPresenca||temComissao){
+        statusClass=' parcial';
+      }
+    }
+  }
   const div=document.createElement('div');
-  div.className='cal-day'+(outroMes?' outro-mes':'')+(fechado?' fechado':'')+(ds===hoje?' today':'');
-  div.innerHTML=`<span class="cal-day-num">${data.getDate()}</span><div class="cal-dots">${temPresenca?'<div class="cal-dot presenca"></div>':''}${temComissao?'<div class="cal-dot comissao"></div>':''}</div>`;
+  div.className='cal-day'+(outroMes?' outro-mes':'')+(fechado?' fechado':'')+(ds===hoje?' today':'')+statusClass;
+  div.innerHTML=`<span class="cal-day-num">${data.getDate()}</span>${checkHtml}`;
   if(!outroMes&&!fechado){
     div.onclick=()=>{diaAtual=data;navTo('presenca')};
   }
