@@ -1318,54 +1318,80 @@ function getSemana(offset){
   return{seg,dom};
 }
 
+function calcularBonus(funcionario, turnos){
+  const valorBonus=funcionario.cargo==='Gerente'?100:80;
+  const extras=Math.max(0,turnos-6);
+  return extras*valorBonus;
+}
+
 async function renderResumoSemanal(){
   const{seg,dom}=getSemana(semanaOffset);
   document.getElementById('semana-label').textContent=fmtBR(seg)+' – '+fmtBR(dom);
   const inicio=dataStr(seg),fim=dataStr(dom);
-  let comissoes=[];
-  try{comissoes=await apiGet({action:'getComissaoRange',inicio,fim})}catch(e){}
+  let comissoes=[],presencas=[];
+  try{
+    [comissoes,presencas]=await Promise.all([
+      apiGet({action:'getComissaoRange',inicio,fim}),
+      apiGet({action:'getPresencaRange',inicio,fim})
+    ]);
+  }catch(e){}
 
   const totais={};
-  funcionarios.forEach(f=>totais[f.id]={nome:f.nome,cargo:f.cargo,setor:f.setor,total:0});
+  funcionarios.forEach(f=>totais[f.id]={id:f.id,nome:f.nome,cargo:f.cargo,setor:f.setor,total:0,bonus:0,turnos:0});
+
+  // Conta turnos trabalhados por funcionário na semana
+  const turnosChave=new Set();
+  presencas.forEach(p=>{
+    if(p.status==='trabalhou'&&totais[p.funcionario_id]){
+      const chave=p.funcionario_id+'_'+p.data+'_'+p.turno;
+      if(!turnosChave.has(chave)){
+        turnosChave.add(chave);
+        totais[p.funcionario_id].turnos++;
+      }
+    }
+  });
+
+  // Soma gorjetas
   comissoes.forEach(c=>{
     const dist=c.distribuicao||{};
     Object.entries(dist).forEach(([id,val])=>{
       if(totais[id])totais[id].total+=Number(val);
     });
   });
-  // Conta dias únicos por data+turno no semanal
-  const semChaves=new Set();
-  // (já contabilizado via comissoes acima)
+
+  // Calcula bônus
+  funcionarios.forEach(f=>{
+    if(totais[f.id]) totais[f.id].bonus=calcularBonus(f,totais[f.id].turnos);
+  });
 
   const salao=Object.values(totais).filter(f=>f.setor==='salao');
   const cozinha=Object.values(totais).filter(f=>f.setor==='cozinha');
   const totalGeral=Object.values(totais).reduce((a,f)=>a+f.total,0);
+  const totalBonus=Object.values(totais).reduce((a,f)=>a+f.bonus,0);
+
+  const renderCard=(lista,titulo,badge,cor)=>`<div class="card" style="margin-bottom:16px">
+    <div class="setor-header"><span class="badge ${badge}">${titulo}</span><h4 style="color:${cor}">${titulo}</h4></div>
+    <div class="presenca-grid">
+    ${lista.map(f=>`<div class="presenca-item">
+      <div>
+        <div class="presenca-nome">${f.nome}</div>
+        <div class="presenca-info">${f.cargo} · ${f.turnos} turno(s) na semana</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:13px;color:var(--text2)">Gorjeta: <strong>${fmtMoeda(f.total)}</strong></div>
+        ${f.bonus>0?`<div style="font-size:13px;color:var(--green)">Bônus extra: <strong>+${fmtMoeda(f.bonus)}</strong> (${f.turnos-6} turno${f.turnos-6>1?'s':''})</div>`:''}
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:18px;color:var(--text);margin-top:4px;border-top:1px solid var(--border);padding-top:4px">${fmtMoeda(f.total+f.bonus)}</div>
+      </div>
+    </div>`).join('')}
+    </div>
+  </div>`;
 
   let html=`<div class="grid-2" style="margin-bottom:20px">
-    <div class="stat-card"><div class="stat-label">Total da Semana</div><div class="stat-value text-accent">${fmtMoeda(totalGeral)}</div></div>
-    <div class="stat-card"><div class="stat-label">Dias com gorjeta</div><div class="stat-value">${comissoes.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Gorjetas</div><div class="stat-value">${fmtMoeda(totalGeral)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Bônus Extra</div><div class="stat-value text-green">${fmtMoeda(totalBonus)}</div></div>
   </div>`;
-
-  html+=`<div class="card" style="margin-bottom:16px">
-    <div class="setor-header"><span class="badge badge-salao">Salão</span><h4 style="color:var(--salao)">Salão</h4></div>
-    <div class="presenca-grid">
-    ${salao.map(f=>`<div class="presenca-item">
-      <div><div class="presenca-nome">${f.nome}</div><div class="presenca-info">${f.cargo}</div></div>
-      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:18px;color:var(--accent)">${fmtMoeda(f.total)}</div>
-    </div>`).join('')}
-    </div>
-  </div>`;
-
-  html+=`<div class="card">
-    <div class="setor-header"><span class="badge badge-cozinha">Cozinha</span><h4 style="color:var(--cozinha)">Cozinha</h4></div>
-    <div class="presenca-grid">
-    ${cozinha.map(f=>`<div class="presenca-item">
-      <div><div class="presenca-nome">${f.nome}</div><div class="presenca-info">${f.cargo}</div></div>
-      <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:18px;color:var(--accent)">${fmtMoeda(f.total)}</div>
-    </div>`).join('')}
-    </div>
-  </div>`;
-
+  html+=renderCard(salao,'Salão','badge-salao','var(--salao)');
+  html+=renderCard(cozinha,'Cozinha','badge-cozinha','var(--cozinha)');
   document.getElementById('resumo-semanal-content').innerHTML=html;
 }
 
@@ -1386,7 +1412,7 @@ async function renderResumoMensal(){
   ])}catch(e){}
 
   const totais={};
-  funcionarios.forEach(f=>totais[f.id]={nome:f.nome,cargo:f.cargo,setor:f.setor,hNormais:0,hNoturnas:0,comissao:0,diasTrab:0});
+  funcionarios.forEach(f=>totais[f.id]={id:f.id,nome:f.nome,cargo:f.cargo,setor:f.setor,hNormais:0,hNoturnas:0,comissao:0,diasTrab:0});
   const presencaChaves=new Set();
   presencas.forEach(p=>{
     if(p.status==='trabalhou'&&totais[p.funcionario_id]){
@@ -1405,22 +1431,48 @@ async function renderResumoMensal(){
     Object.entries(dist).forEach(([id,val])=>{if(totais[id])totais[id].comissao+=Number(val)});
   });
 
+  // Calcula bônus por semana no mês
+  // Agrupa turnos por semana por funcionário
+  const semanasTurnos={};
+  presencas.forEach(p=>{
+    if(p.status!=='trabalhou') return;
+    const d=dataFromStr(p.data);
+    const ds=diaSemana(d);
+    // Encontra segunda da semana
+    const seg=new Date(d);
+    seg.setDate(d.getDate()-((ds===0?7:ds)-1));
+    const semKey=dataStr(seg);
+    const fKey=p.funcionario_id+'_'+semKey;
+    if(!semanasTurnos[fKey]) semanasTurnos[fKey]={funcId:p.funcionario_id,turnos:new Set()};
+    semanasTurnos[fKey].turnos.add(p.data+'_'+p.turno);
+  });
+
+  // Soma bônus por funcionário no mês
+  const bonusMes={};
+  funcionarios.forEach(f=>bonusMes[f.id]=0);
+  Object.values(semanasTurnos).forEach(s=>{
+    const func=funcionarios.find(f=>String(f.id)===String(s.funcId));
+    if(func) bonusMes[s.funcId]=(bonusMes[s.funcId]||0)+calcularBonus(func,s.turnos.size);
+  });
+
   const rows=Object.values(totais);
   const html=`<table>
     <thead><tr>
       <th>Funcionário</th><th>Cargo</th><th>Setor</th><th>Dias</th>
-      <th>H. Normais</th><th>H. Noturnas</th><th>Comissão</th>
+      <th>H. Normais</th><th>H. Noturnas</th><th>Gorjeta</th><th>Bônus Extra</th><th>Total</th>
     </tr></thead>
     <tbody>
     ${rows.map(r=>`<tr>
-      <td style="color:var(--text);font-weight:500">${r.nome}</td>
-      <td>${r.cargo}</td>
-      <td><span class="badge ${r.setor==='salao'?'badge-salao':'badge-cozinha'}">${r.setor}</span></td>
-      <td>${r.diasTrab}</td>
-      <td>${r.hNormais.toFixed(1)}h</td>
-      <td style="color:var(--accent)">${r.hNoturnas.toFixed(1)}h</td>
-      <td style="color:var(--green);font-weight:500">${fmtMoeda(r.comissao)}</td>
-    </tr>`).join('')}
+        <td style="color:var(--text);font-weight:500">${r.nome}</td>
+        <td>${r.cargo}</td>
+        <td><span class="badge ${r.setor==='salao'?'badge-salao':'badge-cozinha'}">${r.setor}</span></td>
+        <td>${r.diasTrab}</td>
+        <td>${r.hNormais.toFixed(1)}h</td>
+        <td style="color:var(--accent)">${r.hNoturnas.toFixed(1)}h</td>
+        <td style="color:var(--green);font-weight:500">${fmtMoeda(r.comissao)}</td>
+        <td style="color:var(--green);font-weight:500">${bonusMes[r.id]>0?fmtMoeda(bonusMes[r.id]):'-'}</td>
+        <td style="color:var(--text);font-weight:700">${fmtMoeda(r.comissao+(bonusMes[r.id]||0))}</td>
+      </tr>`).join('')}
     </tbody>
   </table>`;
   document.getElementById('resumo-mensal-table').innerHTML=html;
