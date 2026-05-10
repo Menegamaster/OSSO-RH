@@ -1097,20 +1097,46 @@ async function renderComissaoDia(){
   const ds=dataStr(diaComissao);
   document.getElementById('comissao-dia-label').textContent=fmtBR(diaComissao)+' ('+DIAS_PT[diaSemana(diaComissao)]+')';
   try{
-    const c=await apiGet({action:'getComissao',data:ds});
-    if(c){
+    const resultado=await apiGet({action:'getComissao',data:ds});
+    const lista=Array.isArray(resultado)?resultado:(resultado?[resultado]:[]);
+    if(lista.length>0){
       document.getElementById('comissao-vazio').style.display='none';
       document.getElementById('comissao-registrada').style.display='block';
-      document.getElementById('cd-bruto').textContent=fmtMoeda(c.valor_bruto);
-      document.getElementById('cd-liquido').textContent=fmtMoeda(c.valor_liquido);
-      document.getElementById('cd-desconto').textContent=`Desconto ${c.desconto_pct}% aplicado`;
-      renderDistribuicao('cd-dist-salao',c.distribuicao,'salao');
-      renderDistribuicao('cd-dist-cozinha',c.distribuicao,'cozinha');
+      // Soma totais
+      const totalBruto=lista.reduce((a,c)=>a+c.valor_bruto,0);
+      const totalLiquido=lista.reduce((a,c)=>a+c.valor_liquido,0);
+      document.getElementById('cd-bruto').textContent=fmtMoeda(totalBruto);
+      document.getElementById('cd-liquido').textContent=fmtMoeda(totalLiquido);
+      document.getElementById('cd-desconto').textContent=`${lista.length} turno(s) registrado(s)`;
+      // Mostra cada turno separado
+      const salaoEl=document.getElementById('cd-dist-salao');
+      const cozinhaEl=document.getElementById('cd-dist-cozinha');
+      salaoEl.innerHTML='';
+      cozinhaEl.innerHTML='';
+      lista.forEach(c=>{
+        const label=c.turno==='dia'?'☀️ Turno Dia':c.turno==='noite'?'🌙 Turno Noite':'Turno Único';
+        const header=`<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 6px;font-weight:600">${label} — ${fmtMoeda(c.valor_liquido)} líquido</div>`;
+        // Monta distribuicao combinada para esse turno
+        const distSalao=Object.fromEntries(Object.entries(c.distribuicao).filter(([id])=>{const f=funcionarios.find(x=>String(x.id)===id);return f&&f.setor==='salao'}));
+        const distCozinha=Object.fromEntries(Object.entries(c.distribuicao).filter(([id])=>{const f=funcionarios.find(x=>String(x.id)===id);return f&&f.setor==='cozinha'}));
+        salaoEl.innerHTML+=header+renderDistModalHTML(distSalao);
+        cozinhaEl.innerHTML+=header+renderDistModalHTML(distCozinha);
+      });
     } else {
       document.getElementById('comissao-vazio').style.display='block';
       document.getElementById('comissao-registrada').style.display='none';
     }
   }catch(e){}
+}
+
+function renderDistModalHTML(dist){
+  return Object.entries(dist).map(([id,val])=>{
+    const f=funcionarios.find(x=>String(x.id)===id);
+    return `<div class="comissao-dist-item">
+      <div><div class="comissao-dist-nome">${f?f.nome:id}</div><div style="font-size:12px;color:var(--text3)">${f?f.cargo:''}</div></div>
+      <div class="comissao-dist-valor">${fmtMoeda(val)}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderDistribuicao(elId,dist,setor){
@@ -1155,7 +1181,8 @@ async function abrirModalComissao(){
   comissaoPresentes.salao=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
   comissaoPresentes.cozinha=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
 
-  document.getElementById('comissao-data-info').innerHTML=`Data: <strong>${fmtBR(diaComissao)}</strong> · Salão: <span style="color:var(--salao)">${comissaoPresentes.salao.length} presentes</span> · Cozinha: <span style="color:var(--cozinha)">${comissaoPresentes.cozinha.length} presentes</span>`;
+  const turnoLabel=turnoAtual==='dia'?'☀️ Turno Dia':turnoAtual==='noite'?'🌙 Turno Noite':'Turno Único';
+  document.getElementById('comissao-data-info').innerHTML=`Data: <strong>${fmtBR(diaComissao)}</strong> · <strong>${turnoLabel}</strong> · Salão: <span style="color:var(--salao)">${comissaoPresentes.salao.length} presentes</span> · Cozinha: <span style="color:var(--cozinha)">${comissaoPresentes.cozinha.length} presentes</span>`;
   document.getElementById('c-bruto').value='';
   document.getElementById('c-desconto').value='15';
   document.getElementById('c-preview').style.display='none';
@@ -1254,6 +1281,7 @@ async function salvarComissao(){
     await apiPost({
       action:'salvarComissao',
       data:ds,
+      turno:turnoAtual||'unico',
       valor_bruto:bruto,
       desconto_pct:desc,
       valor_liquido:liquido,
@@ -1305,6 +1333,9 @@ async function renderResumoSemanal(){
       if(totais[id])totais[id].total+=Number(val);
     });
   });
+  // Conta dias únicos por data+turno no semanal
+  const semChaves=new Set();
+  // (já contabilizado via comissoes acima)
 
   const salao=Object.values(totais).filter(f=>f.setor==='salao');
   const cozinha=Object.values(totais).filter(f=>f.setor==='cozinha');
@@ -1356,11 +1387,17 @@ async function renderResumoMensal(){
 
   const totais={};
   funcionarios.forEach(f=>totais[f.id]={nome:f.nome,cargo:f.cargo,setor:f.setor,hNormais:0,hNoturnas:0,comissao:0,diasTrab:0});
+  const presencaChaves=new Set();
   presencas.forEach(p=>{
     if(p.status==='trabalhou'&&totais[p.funcionario_id]){
       totais[p.funcionario_id].hNormais+=Number(p.horas_normais)||0;
       totais[p.funcionario_id].hNoturnas+=Number(p.horas_noturnas)||0;
-      totais[p.funcionario_id].diasTrab++;
+      // Conta cada data+turno como 1 dia
+      const chave=p.funcionario_id+'_'+p.data+'_'+p.turno;
+      if(!presencaChaves.has(chave)){
+        presencaChaves.add(chave);
+        totais[p.funcionario_id].diasTrab++;
+      }
     }
   });
   comissoes.forEach(c=>{
