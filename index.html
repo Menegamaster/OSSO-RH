@@ -1169,22 +1169,28 @@ async function abrirModalComissao(){
   // Sincroniza diaComissao com diaAtual quando chamado da aba de presença
   diaComissao=new Date(diaAtual.getFullYear(),diaAtual.getMonth(),diaAtual.getDate());
   const ds=dataStr(diaComissao);
+  const turno=turnoAtual||'unico';
 
-  // SEMPRE busca do servidor + complementa com memória
+  // SEMPRE busca presença atualizada do servidor, filtrando pelo turno correto
   let registros=[];
   try{registros=await apiGet({action:'getPresenca',data:ds})}catch(e){}
-  const savedPresentes=registros.filter(r=>r.status==='trabalhou').map(r=>r.funcionario_id.toString());
   
-  // Complementa com quem está marcado em memória mas ainda não foi salvo
-  const turnos=getTurnosDia(diaComissao);
+  // Filtra pelo turno atual — presença mais recente do servidor tem prioridade
+  const savedPresentes=registros
+    .filter(r=>r.turno===turno && r.status==='trabalhou')
+    .map(r=>r.funcionario_id.toString());
+
+  // Complementa com memória só para quem ainda não foi salvo no turno atual
+  const salvosIds=new Set(registros.filter(r=>r.turno===turno).map(r=>r.funcionario_id.toString()));
   const memoriaPresentes=[];
   funcionarios.forEach(f=>{
-    const trabalhou=turnos.some(t=>presencaAtual[getTurnoKey(f.id,t)]==='trabalhou');
-    if(trabalhou) memoriaPresentes.push(f.id.toString());
+    const key=getTurnoKey(f.id,turno);
+    if(!salvosIds.has(f.id.toString()) && presencaAtual[key]==='trabalhou'){
+      memoriaPresentes.push(f.id.toString());
+    }
   });
-  
-  const todos=[...new Set([...savedPresentes,...memoriaPresentes])];
-  let presentesIds=todos;
+
+  const presentesIds=[...new Set([...savedPresentes,...memoriaPresentes])];
 
   comissaoPresentes.salao=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='salao'});
   comissaoPresentes.cozinha=presentesIds.filter(id=>{const f=funcionarios.find(x=>x.id.toString()===id);return f&&f.setor==='cozinha'});
