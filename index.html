@@ -1009,11 +1009,19 @@ function marcarTodos(status){
 async function salvarPresencaDia(){
   const ds=dataStr(diaAtual);
   const turnos=getTurnosDia(diaAtual);
-  // Monta lista de registros para salvar
+  // Busca registros já salvos no servidor para garantir que não perde dados
+  let savedRegistros=[];
+  try{savedRegistros=await apiGet({action:'getPresenca',data:ds});}catch(e){}
+  // Carrega registros salvos na memória (sem sobrescrever alterações feitas na tela)
+  savedRegistros.forEach(r=>{
+    const key=getTurnoKey(r.funcionario_id,r.turno||'unico');
+    if(!presencaAtual[key]) presencaAtual[key]=r.status;
+  });
+  // Monta lista de registros para salvar (todos com status, incluindo os editados)
   const registros=[];
   funcionarios.forEach(f=>{
     turnos.forEach(t=>{
-      const key=getTurnoKey(f.id,t);
+      const key=getTurnoKey(String(f.id).trim(),t);
       const status=presencaAtual[key];
       if(status){
         const horas=calcularHoras(f,t,diaAtual,status);
@@ -1219,11 +1227,11 @@ function calcDistSalao(total,ids){
   const outros=ids.filter(id=>id!==tatianeId);
   let base,dist={};
   if(tatianeId){
-    // n_outros cotas de 1, tatiane cota de 1.15
+    // n_outros cotas de 1, tatiane cota de 1.25
     const n=outros.length;
-    const totalCotas=n*1+1.15;
+    const totalCotas=n*1+1.25;
     base=total/totalCotas;
-    dist[tatianeId]=base*1.15;
+    dist[tatianeId]=base*1.25;
     outros.forEach(id=>dist[id]=base);
   } else {
     base=total/ids.length;
